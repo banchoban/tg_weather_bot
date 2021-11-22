@@ -19,8 +19,8 @@ async def get_weather_data(lat, lon):
 
 
 async def get_current_weather(payload: dict):  # FIXME various api methods
-    lat = payload['lat']
-    lon = payload['lon']
+    lat = payload['latitude']
+    lon = payload['longitude']
 
     json_data = await get_weather_data(lat=lat, lon=lon)
 
