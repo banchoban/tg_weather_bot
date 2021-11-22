@@ -1,5 +1,6 @@
 import asyncio
 import json
+import csv
 
 from decouple import config
 
@@ -10,7 +11,7 @@ API_TOKEN = config('WEATHER_API_KEY')
 
 async def get_weather_data(lat, lon):
 
-    api_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_TOKEN}'  # TODO
+    api_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_TOKEN}'
 
     response = await make_request(url=api_url)
     json_data = json.loads(response)
@@ -31,9 +32,15 @@ async def get_current_weather(payload: dict):  # FIXME various api methods
 def parse_weather_data(json_data: dict):
     result = dict()
 
+    with open('weather_conditions.csv') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if str(json_data['weather'][0]['id']) == row[0]:
+                result['icon'] = row[1]
+                break
+
     result['city'] = json_data["name"]
     result['weather'] = json_data["weather"][0]["description"].title()
-    result['icon'] = json_data['weather'][0]['icon']
     result['temp'] = json_data["main"]["temp"]
     result['feels_like'] = json_data["main"]["feels_like"]
     result['pressure'] = json_data["main"]["pressure"]

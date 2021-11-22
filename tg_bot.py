@@ -13,6 +13,7 @@ IMAGE_URL_TPL = 'http://openweathermap.org/img/wn/{}@2x.png'
 TODAY_DATE = datetime.utcnow().date()
 
 subscribers_list = [337886033]
+# TODO user's db
 
 
 async def make_weather_mailing():  # TODO
@@ -48,7 +49,7 @@ async def process_update(json_data: dict):
 
         weather_data = await get_current_weather(json_data['message']['location'])
         weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
-                       f'<b>Weather:</b> {weather_data["weather"]}\n' \
+                       f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
                        f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
                        f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
                        f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
