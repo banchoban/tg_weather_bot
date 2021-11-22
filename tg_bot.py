@@ -9,6 +9,7 @@ from weather_processor import get_current_weather
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
 API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token, method name)
+IMAGE_URL_TPL = 'http://openweathermap.org/img/wn/{}@2x.png'
 TODAY_DATE = datetime.utcnow().date()
 
 subscribers_list = [337886033]
@@ -46,14 +47,21 @@ async def process_update(json_data: dict):
     if 'location' in json_data['message']:
 
         weather_data = await get_current_weather(json_data['message']['location'])
-        await send_message(chat_id=json_data['message']['chat']['id'], text=json.dumps(weather_data))
+        weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
+                       f'<b>Weather:</b> {weather_data["weather"]}\n' \
+                       f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
+                       f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
+                       f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
+                       f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
+
+        await send_message(chat_id=json_data['message']['chat']['id'], text=weather_info)
     else:
         await send_message(chat_id=json_data['message']['chat']['id'], text='Sorry, i didn\'t find geo data in your message. Try to send it again.')
 
 
 async def send_message(chat_id: int, text: str, data=None):  # TODO do we need to send files in messages?
     api_url = API_REQUEST_TPL.format(API_ACCESS_TOKEN, 'sendMessage')
-    data = {'chat_id': chat_id, 'text': text}
+    data = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
 
     await make_request(url=api_url, payload=data)
 
