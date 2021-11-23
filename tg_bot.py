@@ -38,7 +38,7 @@ async def get_updates():
         update = json.loads(response)
 
         if update['result']:
-            updates_offset = update['result'][-1]['update_id']
+            updates_offset = update['result'][-1]['update_id'] + 1
             await process_update(update['result'][-1])
 
         await asyncio.sleep(2.0)
