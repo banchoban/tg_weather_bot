@@ -1,3 +1,5 @@
+# This module used for getting weather information from weather api (for nuw it is openweathermap)
+
 import asyncio
 import json
 import csv
@@ -9,30 +11,25 @@ from helpers.requester import make_request
 API_TOKEN = config('WEATHER_API_KEY')
 
 
-async def get_weather_data(lat, lon):
+async def get_current_weather(payload: dict):  # FIXME various api methods
+    """Making request to weather api for getting current weather data"""
+    lat = payload['latitude']
+    lon = payload['longitude']
 
     api_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_TOKEN}'
 
     response = await make_request(url=api_url)
     json_data = json.loads(response)
-
-    return json_data
-
-
-async def get_current_weather(payload: dict):  # FIXME various api methods
-    lat = payload['latitude']
-    lon = payload['longitude']
-
-    json_data = await get_weather_data(lat=lat, lon=lon)
     weather_data = parse_weather_data(json_data)
 
     return weather_data
 
 
 def parse_weather_data(json_data: dict):
+    """Parsing required data fields from json with received weather data"""
     result = dict()
 
-    with open('weather_conditions.csv') as file:
+    with open('weather_conditions.csv') as file:  # searching suitable weather emoji in csv file
         reader = csv.reader(file)
         for row in reader:
             if str(json_data['weather'][0]['id']) == row[0]:
@@ -54,4 +51,4 @@ def parse_weather_data(json_data: dict):
 
 
 if __name__ == '__main__':
-    print(asyncio.run(get_current_weather({'latitude': '55.4507', 'longitude': '37.3656'})))
+    print(asyncio.run(get_current_weather({'latitude': '55.4507', 'longitude': '37.3656'})))  # for testing api requests  FIXME

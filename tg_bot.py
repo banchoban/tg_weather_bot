@@ -1,3 +1,5 @@
+# This is main module of project, used for interaction with telegram api
+
 import json
 import asyncio
 
@@ -9,14 +11,12 @@ from weather_processor import get_current_weather
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
 API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token, method name)
-IMAGE_URL_TPL = 'http://openweathermap.org/img/wn/{}@2x.png'
 TODAY_DATE = datetime.utcnow().date()
 
-subscribers_list = [337886033]
 updates_queue = list()
 # TODO user's db
 
-
+'''
 async def make_weather_mailing():  # TODO
     while True:
         if datetime.utcnow().date() > TODAY_DATE:  # if we have next day TODO make it better
@@ -26,6 +26,7 @@ async def make_weather_mailing():  # TODO
             await asyncio.sleep(24 * 3600)  # one day
         else:
             await asyncio.sleep(3600)  # one hour
+'''
 
 
 async def get_updates():
@@ -46,6 +47,7 @@ async def get_updates():
 
 
 async def process_updates():
+    """Processing updates, received from tg"""
     while True:
         if not updates_queue:
             await asyncio.sleep(3.0)
@@ -54,7 +56,7 @@ async def process_updates():
         json_data = updates_queue[0]
         updates_queue.remove(json_data)
 
-        if 'location' in json_data['message']:
+        if 'location' in json_data['message']:  # reading place coords to get actual weather data
 
             weather_data = await get_current_weather(json_data['message']['location'])
             weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
@@ -70,6 +72,7 @@ async def process_updates():
 
 
 async def send_message(chat_id: int, text: str, data=None):  # TODO do we need to send files in messages?
+    """Sending message to tg user"""
     api_url = API_REQUEST_TPL.format(API_ACCESS_TOKEN, 'sendMessage')
     data = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
 
@@ -77,6 +80,7 @@ async def send_message(chat_id: int, text: str, data=None):  # TODO do we need t
 
 
 def run_bot():
+    """Run tasks for receiving and processing updates"""
     ioloop = asyncio.get_event_loop()
     tasks = [ioloop.create_task(get_updates()), ioloop.create_task(process_updates())]
     wait_tasks = asyncio.wait(tasks)
