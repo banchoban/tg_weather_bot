@@ -1,4 +1,5 @@
 # This is main module of project, used for interaction with telegram api
+# TODO logging
 
 import json
 import asyncio
@@ -89,4 +90,7 @@ def run_bot():
 
 
 if __name__ == '__main__':
-    run_bot()
+    try:
+        run_bot()
+    except KeyboardInterrupt:
+        print('Closed')
