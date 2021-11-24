@@ -1,8 +1,9 @@
 # This is main module of project, used for interaction with telegram api
-# TODO logging
+# TODO exceptions
 
 import json
 import asyncio
+import logging
 
 from decouple import config
 from datetime import datetime  # TODO timezones
@@ -12,7 +13,10 @@ from weather_processor import get_current_weather
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
 API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token, method name)
-TODAY_DATE = datetime.utcnow().date()
+# TODAY_DATE = datetime.utcnow().date()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 updates_queue = list()
 # TODO user's db
@@ -41,6 +45,7 @@ async def get_updates():
         update = json.loads(response)
 
         if update['result']:
+            logger.debug(f'Received {len(update["result"])} updates from Telegram')
             updates_offset = update['result'][-1]['update_id'] + 1
             updates_queue.extend(update['result'])
 
@@ -57,19 +62,34 @@ async def process_updates():
         json_data = updates_queue[0]
         updates_queue.remove(json_data)
 
-        if 'location' in json_data['message']:  # reading place coords to get actual weather data
+        if json_data.get('message'):  # reading place coords to get actual weather data
+            message = json_data['message']
 
-            weather_data = await get_current_weather(json_data['message']['location'])
-            weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
-                           f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
-                           f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
-                           f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
-                           f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
-                           f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
+            username = message["from"]["username"]
+            user_id = message["from"]["id"]
 
-            await send_message(chat_id=json_data['message']['chat']['id'], text=weather_info)
-        else:
-            await send_message(chat_id=json_data['message']['chat']['id'], text='Sorry, i didn\'t find geo data in your message. Try to send it again.')
+            logger.debug(f'Received message from user {username}: {user_id}')
+
+            if'location' in message:
+                lat = message['location']['latitude']
+                lon = message['location']['longitude']
+
+                logger.debug(f'Getting weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+
+                weather_data = await get_current_weather(lat=lat, lon=lon)
+                weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
+                               f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
+                               f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
+                               f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
+                               f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
+                               f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
+
+                logger.debug(f'Received weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+                await send_message(chat_id=message['chat']['id'], text=weather_info)
+            else:
+                logger.warning(f'Location data doesnt found in message {message}')
+
+                await send_message(chat_id=message['chat']['id'], text='Sorry, i didn\'t find geo data in your message. Try to send it again.')
 
 
 async def send_message(chat_id: int, text: str, data=None):  # TODO do we need to send files in messages?
@@ -77,6 +97,7 @@ async def send_message(chat_id: int, text: str, data=None):  # TODO do we need t
     api_url = API_REQUEST_TPL.format(API_ACCESS_TOKEN, 'sendMessage')
     data = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
 
+    logger.debug(f'Sending message to chat {chat_id}')
     await make_request(url=api_url, payload=data)
 
 
@@ -91,6 +112,7 @@ def run_bot():
 
 if __name__ == '__main__':
     try:
+        logger.debug('Started')
         run_bot()
     except KeyboardInterrupt:
-        print('Closed')
+        logger.debug('Stopped')

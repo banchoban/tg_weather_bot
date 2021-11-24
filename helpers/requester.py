@@ -1,4 +1,8 @@
 import aiohttp
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 
 async def make_request(url: str, headers=None, payload=None):

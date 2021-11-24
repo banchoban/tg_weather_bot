@@ -3,6 +3,7 @@
 import asyncio
 import json
 import csv
+import logging
 
 from decouple import config
 
@@ -10,11 +11,13 @@ from helpers.requester import make_request
 
 API_TOKEN = config('WEATHER_API_KEY')
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
-async def get_current_weather(payload: dict):  # FIXME various api methods
+
+async def get_current_weather(lat: float, lon: float):  # FIXME various api methods
     """Making request to weather api for getting current weather data"""
-    lat = payload['latitude']
-    lon = payload['longitude']
+    logger.debug(f'Trying to get weather data for lat: {lat}, lon: {lon}')
 
     api_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_TOKEN}'
 
@@ -27,6 +30,8 @@ async def get_current_weather(payload: dict):  # FIXME various api methods
 
 def parse_weather_data(json_data: dict):
     """Parsing required data fields from json with received weather data"""
+    logger.debug('Parsing received weather data')
+
     result = dict()
 
     with open('weather_conditions.csv') as file:  # searching suitable weather emoji in csv file
@@ -47,6 +52,7 @@ def parse_weather_data(json_data: dict):
     result['sunrise'] = json_data["sys"]["sunrise"]
     result['sunset'] = json_data["sys"]["sunset"]
 
+    logger.debug('Weather data successfully parsed')
     return result
 
 
