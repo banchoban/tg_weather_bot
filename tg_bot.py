@@ -42,8 +42,34 @@ async def send_register_msg(user_id: int):
     await send_message(chat_id=user_id, text='Please, send me your current location. With this i can send you current weather data anytime :)', reply_markup=json.dumps(reply_markup))
 
 
+async def send_current_weather_msg(user_id: int):
+    if user_id not in users:
+        logger.warning(f'Can not get weather for user {user_id}. User is not in db!')
+        await send_register_msg(user_id)
+        return
+
+    reply_markup = {'keyboard': set_default_kb(user_id)}
+    username = users[user_id]['username']
+    lat = users[user_id]['location']['latitude']
+    lon = users[user_id]['location']['longitude']
+
+    logger.debug(f'Getting weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+
+    weather_data = await get_current_weather(lat=lat, lon=lon)
+    weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
+                   f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
+                   f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
+                   f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
+                   f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
+                   f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
+
+    logger.debug(f'Received weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+    await send_message(chat_id=user_id, text=weather_info, reply_markup=json.dumps(reply_markup))
+
+
 command_mapping = {'/start': send_start_msg,
-                   'Register': send_register_msg}
+                   'Register': send_register_msg,
+                   'Current weather': send_current_weather_msg}
 
 # TODO user's db
 
@@ -127,26 +153,6 @@ async def process_updates():
                     logger.debug(f'User: {user_id}: {username} successfully added in db')
 
                 await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
-                continue
-
-                lat = message['location']['latitude']
-                lon = message['location']['longitude']
-
-                logger.debug(f'Getting weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
-
-                weather_data = await get_current_weather(lat=lat, lon=lon)
-                weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
-                               f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
-                               f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
-                               f'<b>Pressure:</b> {weather_data["pressure"]} P. <b>Humidity:</b> {weather_data["humidity"]} %.\n' \
-                               f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
-                               f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
-
-                logger.debug(f'Received weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
-                await send_message(chat_id=message['chat']['id'], text=weather_info)
-            else:
-                logger.warning(f'Location data doesnt found in message {message}')
-                await send_message(chat_id=message['chat']['id'], text='Sorry, i didn\'t find geo data in your message. Try to send it again.')
 
 
 async def send_message(chat_id: int, text: str, reply_markup: str = None, data=None):  # TODO do we need to send files in messages?
