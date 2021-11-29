@@ -19,6 +19,21 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 updates_queue = list()
+users = dict()
+
+
+async def send_start_message(user_id: int):
+    current_weather__button = {'text': 'Current weather'}
+    keyboard = [[current_weather__button]]
+
+    if user_id not in users:  # TODO
+        keyboard[0].append({'text': 'Register'})
+
+    reply_markup = {'keyboard': keyboard}
+    await send_message(chat_id=user_id, text='Hi! How can i help you?', reply_markup=json.dumps(reply_markup))
+
+command_mapping = {'/start': send_start_message}
+
 # TODO user's db
 
 '''
@@ -70,7 +85,14 @@ async def process_updates():
 
             logger.debug(f'Received message from user {username}: {user_id}')
 
+            if message['text'] in command_mapping:
+                logger.debug(f'Received {message["text"]} command from user {user_id}: {username}')
+                await command_mapping[message['text']](user_id=user_id)
+                logger.debug(f'Command {message["text"]} for user {user_id}: {username} executed')
+                continue
+
             if'location' in message:
+
                 lat = message['location']['latitude']
                 lon = message['location']['longitude']
 
@@ -88,14 +110,16 @@ async def process_updates():
                 await send_message(chat_id=message['chat']['id'], text=weather_info)
             else:
                 logger.warning(f'Location data doesnt found in message {message}')
-
                 await send_message(chat_id=message['chat']['id'], text='Sorry, i didn\'t find geo data in your message. Try to send it again.')
 
 
-async def send_message(chat_id: int, text: str, data=None):  # TODO do we need to send files in messages?
+async def send_message(chat_id: int, text: str, reply_markup: str = None, data=None):  # TODO do we need to send files in messages?
     """Sending message to tg user"""
     api_url = API_REQUEST_TPL.format(API_ACCESS_TOKEN, 'sendMessage')
     data = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
+
+    if reply_markup:
+        data['reply_markup'] = reply_markup
 
     logger.debug(f'Sending message to chat {chat_id}')
     await make_request(url=api_url, payload=data)
