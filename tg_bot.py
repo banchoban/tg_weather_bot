@@ -116,12 +116,13 @@ async def process_updates():
             if'location' in message:
                 logger.debug(f'Received location data from user: {user_id}: {username}')
 
-                reply_markup = {'keyboard': set_default_kb(user_id)}
                 if user_id in users:  # TODO
+                    reply_markup = {'keyboard': set_default_kb(user_id)}
                     text = 'You are already registered!'
                     logger.warning(f'User: {user_id}: {username} already exists in db!')
                 else:
                     users[user_id] = {'username': username, 'location': message['location']}
+                    reply_markup = {'keyboard': set_default_kb(user_id)}
                     text = 'Thanks, you have successfully registered!'
                     logger.debug(f'User: {user_id}: {username} successfully added in db')
 
