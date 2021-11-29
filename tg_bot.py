@@ -24,7 +24,12 @@ users = dict()
 
 async def send_start_msg(user_id: int):
     reply_markup = {'keyboard': set_default_kb(user_id)}
-    await send_message(chat_id=user_id, text='Hi! How can i help you?', reply_markup=json.dumps(reply_markup))
+    if user_id in users:
+        text = f'Hi, {users[user_id]["user_name"]}! How can i help you?'
+    else:
+        text = f'Hi! How can i help you?'
+
+    await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
 
 
 async def send_register_msg(user_id: int):
@@ -49,11 +54,11 @@ async def send_current_weather_msg(user_id: int):
         return
 
     reply_markup = {'keyboard': set_default_kb(user_id)}
-    username = users[user_id]['username']
+    user_name = users[user_id]['user_name']
     lat = users[user_id]['location']['latitude']
     lon = users[user_id]['location']['longitude']
 
-    logger.debug(f'Getting weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+    logger.debug(f'Getting weather data for user {user_name}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
 
     weather_data = await get_current_weather(lat=lat, lon=lon)
     weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
@@ -63,7 +68,7 @@ async def send_current_weather_msg(user_id: int):
                    f'<b>Visibility:</b> {weather_data["visibility"]} km. <b>Wind:</b> {weather_data["wind_speed"]} m/s.\n' \
                    f'<b>Sunrise:</b> {datetime.fromtimestamp(weather_data["sunrise"]).time()}. <b>Sunset:</b> {datetime.fromtimestamp(weather_data["sunset"]).time()}.'
 
-    logger.debug(f'Received weather data for user {username}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
+    logger.debug(f'Received weather data for user {user_name}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
     await send_message(chat_id=user_id, text=weather_info, reply_markup=json.dumps(reply_markup))
 
 
@@ -125,32 +130,34 @@ async def process_updates():
         json_data = updates_queue[0]
         updates_queue.remove(json_data)
 
+        logger.debug(f'Processing update {json_data}')
+
         if json_data.get('message'):  # reading place coords to get actual weather data
             message = json_data['message']
 
-            username = message["from"]["username"]
+            user_name = message["from"]["first_name"]
             user_id = message["from"]["id"]
 
-            logger.debug(f'Received message from user {username}: {user_id}')
+            logger.debug(f'Received message from user {user_name}: {user_id}')
 
             if message.get('text') and message['text'] in command_mapping:
-                logger.debug(f'Received {message["text"]} command from user {user_id}: {username}')
+                logger.debug(f'Received {message["text"]} command from user {user_id}: {user_name}')
                 await command_mapping[message['text']](user_id=user_id)
-                logger.debug(f'Command {message["text"]} for user {user_id}: {username} executed')
+                logger.debug(f'Command {message["text"]} for user {user_id}: {user_name} executed')
                 continue
 
             if'location' in message:
-                logger.debug(f'Received location data from user: {user_id}: {username}')
+                logger.debug(f'Received location data from user: {user_id}: {user_name}')
 
                 if user_id in users:  # TODO
                     reply_markup = {'keyboard': set_default_kb(user_id)}
                     text = 'You are already registered!'
-                    logger.warning(f'User: {user_id}: {username} already exists in db!')
+                    logger.warning(f'User: {user_id}: {user_name} already exists in db!')
                 else:
-                    users[user_id] = {'username': username, 'location': message['location']}
+                    users[user_id] = {'user_name': user_name, 'location': message['location']}
                     reply_markup = {'keyboard': set_default_kb(user_id)}
                     text = 'Thanks, you have successfully registered!'
-                    logger.debug(f'User: {user_id}: {username} successfully added in db')
+                    logger.debug(f'User: {user_id}: {user_name} successfully added in db')
 
                 await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
 
