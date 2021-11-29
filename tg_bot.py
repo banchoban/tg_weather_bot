@@ -22,19 +22,41 @@ updates_queue = list()
 users = dict()
 
 
-async def send_start_message(user_id: int):
-    current_weather__button = {'text': 'Current weather'}
-    keyboard = [[current_weather__button]]
+async def send_start_msg(user_id: int):
+    reply_markup = {'keyboard': set_default_kb(user_id)}
+    await send_message(chat_id=user_id, text='Hi! How can i help you?', reply_markup=json.dumps(reply_markup))
+
+
+async def send_register_msg(user_id: int):
+    if user_id in users:
+        logger.warning(f'User {user_id} already exists in db')
+        reply_markup = {'keyboard': set_default_kb(user_id)}
+        await send_message(chat_id=user_id, text='You are already registered!', reply_markup=json.dumps(reply_markup))
+        return
+
+    location_button = {'text': 'Share location', 'request_location': True}
+    keyboard = [[location_button]]
+    reply_markup = {'keyboard': keyboard}
+
+    logger.debug(f'Requesting user {user_id} to send location data')
+    await send_message(chat_id=user_id, text='Please, send me your current location. With this i can send you current weather data anytime :)', reply_markup=json.dumps(reply_markup))
+
+
+command_mapping = {'/start': send_start_msg,
+                   'Register': send_register_msg}
+
+# TODO user's db
+
+
+def set_default_kb(user_id: int) -> list:
+    current_weather_button = {'text': 'Current weather'}
+    keyboard = [[current_weather_button]]
 
     if user_id not in users:  # TODO
         keyboard[0].append({'text': 'Register'})
 
-    reply_markup = {'keyboard': keyboard}
-    await send_message(chat_id=user_id, text='Hi! How can i help you?', reply_markup=json.dumps(reply_markup))
+    return keyboard
 
-command_mapping = {'/start': send_start_message}
-
-# TODO user's db
 
 '''
 async def make_weather_mailing():  # TODO
@@ -85,13 +107,26 @@ async def process_updates():
 
             logger.debug(f'Received message from user {username}: {user_id}')
 
-            if message['text'] in command_mapping:
+            if message.get('text') and message['text'] in command_mapping:
                 logger.debug(f'Received {message["text"]} command from user {user_id}: {username}')
                 await command_mapping[message['text']](user_id=user_id)
                 logger.debug(f'Command {message["text"]} for user {user_id}: {username} executed')
                 continue
 
             if'location' in message:
+                logger.debug(f'Received location data from user: {user_id}: {username}')
+
+                reply_markup = {'keyboard': set_default_kb(user_id)}
+                if user_id in users:  # TODO
+                    text = 'You are already registered!'
+                    logger.warning(f'User: {user_id}: {username} already exists in db!')
+                else:
+                    users[user_id] = {'username': username, 'location': message['location']}
+                    text = 'Thanks, you have successfully registered!'
+                    logger.debug(f'User: {user_id}: {username} successfully added in db')
+
+                await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
+                continue
 
                 lat = message['location']['latitude']
                 lon = message['location']['longitude']
