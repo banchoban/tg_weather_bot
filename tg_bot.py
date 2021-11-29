@@ -20,6 +20,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 updates_queue = list()
 users = dict()
+# TODO users db
 
 
 async def send_start_msg(user_id: int):
@@ -44,7 +45,7 @@ async def send_register_msg(user_id: int):
     reply_markup = {'keyboard': keyboard}
 
     logger.debug(f'Requesting user {user_id} to send location data')
-    await send_message(chat_id=user_id, text='Please, send me your current location. With this i can send you current weather data anytime :)', reply_markup=json.dumps(reply_markup))
+    await send_message(chat_id=user_id, text='Please, send me your current location. With this i can send you actual weather data anytime :)', reply_markup=json.dumps(reply_markup))
 
 
 async def send_current_weather_msg(user_id: int):
@@ -75,8 +76,6 @@ async def send_current_weather_msg(user_id: int):
 command_mapping = {'/start': send_start_msg,
                    'Register': send_register_msg,
                    'Current weather': send_current_weather_msg}
-
-# TODO user's db
 
 
 def set_default_kb(user_id: int) -> list:
