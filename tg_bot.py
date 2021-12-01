@@ -26,7 +26,7 @@ users = dict()
 async def send_start_msg(user_id: int):
     """Sending greeting message to user"""
 
-    reply_markup = {'keyboard': set_default_kb(user_id)}
+    reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
     if user_id in users:
         text = f'Hi, {users[user_id]["user_name"]}! How can i help you?'
     else:
@@ -40,13 +40,13 @@ async def send_register_msg(user_id: int):
 
     if user_id in users:
         logger.warning(f'User {user_id} already exists in db')
-        reply_markup = {'keyboard': set_default_kb(user_id)}
+        reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
         await send_message(chat_id=user_id, text='You are already registered!', reply_markup=json.dumps(reply_markup))
         return
 
     location_button = {'text': 'Share location', 'request_location': True}
     keyboard = [[location_button]]
-    reply_markup = {'keyboard': keyboard}
+    reply_markup = {'keyboard': keyboard, 'resize_keyboard': True}
 
     logger.debug(f'Requesting user {user_id} to send location data')
     await send_message(chat_id=user_id, text='Please, send me your current location. With this i can send you actual weather data anytime :)', reply_markup=json.dumps(reply_markup))
@@ -60,7 +60,7 @@ async def send_current_weather_msg(user_id: int):
         await send_register_msg(user_id)
         return
 
-    reply_markup = {'keyboard': set_default_kb(user_id)}
+    reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
     user_name = users[user_id]['user_name']
     lat = users[user_id]['location']['latitude']
     lon = users[user_id]['location']['longitude']
@@ -166,12 +166,12 @@ async def process_updates():
                     logger.debug(f'Received location data from user: {user_id}: {user_name}')
 
                     if user_id in users:  # TODO
-                        reply_markup = {'keyboard': set_default_kb(user_id)}
+                        reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
                         text = 'You are already registered!'
                         logger.warning(f'User: {user_id}: {user_name} already exists in db!')
                     else:
                         users[user_id] = {'user_name': user_name, 'location': message['location']}
-                        reply_markup = {'keyboard': set_default_kb(user_id)}
+                        reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
                         text = 'Thanks, you have successfully registered!'
                         logger.debug(f'User: {user_id}: {user_name} successfully added in db')
             except KeyError as error:
