@@ -1,5 +1,5 @@
 # This is main module of project, used for interaction with telegram api
-# TODO exceptions
+# TODO move methods into class?
 
 import json
 import asyncio
@@ -24,6 +24,8 @@ users = dict()
 
 
 async def send_start_msg(user_id: int):
+    """Sending greeting message to user"""
+
     reply_markup = {'keyboard': set_default_kb(user_id)}
     if user_id in users:
         text = f'Hi, {users[user_id]["user_name"]}! How can i help you?'
@@ -34,6 +36,8 @@ async def send_start_msg(user_id: int):
 
 
 async def send_register_msg(user_id: int):
+    """Sending registration request to current user and setting up tg keyboard for interaction with bot"""
+
     if user_id in users:
         logger.warning(f'User {user_id} already exists in db')
         reply_markup = {'keyboard': set_default_kb(user_id)}
@@ -49,6 +53,8 @@ async def send_register_msg(user_id: int):
 
 
 async def send_current_weather_msg(user_id: int):
+    """Getting current weather data and sending it to user"""
+
     if user_id not in users:
         logger.warning(f'Can not get weather for user {user_id}. User is not in db!')
         await send_register_msg(user_id)
@@ -62,6 +68,10 @@ async def send_current_weather_msg(user_id: int):
     logger.debug(f'Getting weather data for user {user_name}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
 
     weather_data = await get_current_weather(lat=lat, lon=lon)
+
+    if not weather_data:
+        return
+
     weather_info = f'Current weather data for <b>{weather_data["city"]}</b>\n' \
                    f'<b>Weather:</b> {weather_data["weather"]} {weather_data["icon"]}\n' \
                    f'<b>Temperature:</b> {weather_data["temp"]} \xb0C. <b>Feels like:</b> {weather_data["feels_like"]} \xb0C.\n' \
@@ -79,6 +89,7 @@ command_mapping = {'/start': send_start_msg,
 
 
 def set_default_kb(user_id: int) -> list:
+    """Setting default keyboard in chat with required user"""
     current_weather_button = {'text': 'Current weather'}
     keyboard = [[current_weather_button]]
 
@@ -111,10 +122,15 @@ async def get_updates():
         response = await make_request(url=api_url)
         update = json.loads(response)
 
-        if update['result']:
-            logger.debug(f'Received {len(update["result"])} updates from Telegram')
-            updates_offset = update['result'][-1]['update_id'] + 1
-            updates_queue.extend(update['result'])
+        try:
+            if update['result']:
+                logger.debug(f'Received {len(update["result"])} updates from Telegram')
+                updates_offset = update['result'][-1]['update_id'] + 1
+                updates_queue.extend(update['result'])
+        except KeyError as error:
+            logger.error(f'Error while receiving telegram updates: KeyError: {error}')
+        except IndexError as error:
+            logger.error(f'Error while receiving telegram updates: IndexError: {error}')
 
         await asyncio.sleep(2.0)
 
@@ -132,33 +148,40 @@ async def process_updates():
         logger.debug(f'Processing update {json_data}')
 
         if json_data.get('message'):  # reading place coords to get actual weather data
-            message = json_data['message']
+            try:
+                message = json_data['message']
 
-            user_name = message["from"]["first_name"]
-            user_id = message["from"]["id"]
+                user_name = message["from"]["first_name"]
+                user_id = message["from"]["id"]
 
-            logger.debug(f'Received message from user {user_name}: {user_id}')
+                logger.debug(f'Received message from user {user_name}: {user_id}')
 
-            if message.get('text') and message['text'] in command_mapping:
-                logger.debug(f'Received {message["text"]} command from user {user_id}: {user_name}')
-                await command_mapping[message['text']](user_id=user_id)
-                logger.debug(f'Command {message["text"]} for user {user_id}: {user_name} executed')
+                if message.get('text') and message['text'] in command_mapping:
+                    logger.debug(f'Received {message["text"]} command from user {user_id}: {user_name}')
+                    await command_mapping[message['text']](user_id=user_id)
+                    logger.debug(f'Command {message["text"]} for user {user_id}: {user_name} executed')
+                    continue
+
+                if'location' in message:
+                    logger.debug(f'Received location data from user: {user_id}: {user_name}')
+
+                    if user_id in users:  # TODO
+                        reply_markup = {'keyboard': set_default_kb(user_id)}
+                        text = 'You are already registered!'
+                        logger.warning(f'User: {user_id}: {user_name} already exists in db!')
+                    else:
+                        users[user_id] = {'user_name': user_name, 'location': message['location']}
+                        reply_markup = {'keyboard': set_default_kb(user_id)}
+                        text = 'Thanks, you have successfully registered!'
+                        logger.debug(f'User: {user_id}: {user_name} successfully added in db')
+            except KeyError as error:
+                logger.error(f'Error while parsing received tg message: KeyError: {error}')
+                continue
+            except Exception as error:
+                logger.error(f'Error while parsing received tg message: {type(error)}: {error}')
                 continue
 
-            if'location' in message:
-                logger.debug(f'Received location data from user: {user_id}: {user_name}')
-
-                if user_id in users:  # TODO
-                    reply_markup = {'keyboard': set_default_kb(user_id)}
-                    text = 'You are already registered!'
-                    logger.warning(f'User: {user_id}: {user_name} already exists in db!')
-                else:
-                    users[user_id] = {'user_name': user_name, 'location': message['location']}
-                    reply_markup = {'keyboard': set_default_kb(user_id)}
-                    text = 'Thanks, you have successfully registered!'
-                    logger.debug(f'User: {user_id}: {user_name} successfully added in db')
-
-                await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
+            await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
 
 
 async def send_message(chat_id: int, text: str, reply_markup: str = None, data=None):  # TODO do we need to send files in messages?
