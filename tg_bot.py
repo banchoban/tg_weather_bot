@@ -10,16 +10,18 @@ from datetime import datetime  # TODO timezones
 
 from helpers.requester import make_request
 from weather_processor import get_current_weather
+from database_processor import DBProcessor
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
 API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token, method name)
 # TODAY_DATE = datetime.utcnow().date()
+DBProcessor = DBProcessor('sqlite3.db')
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 updates_queue = list()
-users = dict()
 # TODO users db
 
 
@@ -27,8 +29,13 @@ async def send_start_msg(user_id: int):  # todo remove if
     """Sending greeting message to user"""
 
     reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
-    if user_id in users:
-        text = f'Hi, {users[user_id]["user_name"]}! How can i help you?'
+    user_data = DBProcessor.get_user_from_db(user_id)
+
+    if user_data:
+        if user_data[2]:
+            text = f'Hi, {user_data[2]}! How can i help you?'
+        else:
+            text = f'Hi, {user_data[1]}! How can i help you?'
     else:
         text = f'Hi! How can i help you?'
 
@@ -38,7 +45,7 @@ async def send_start_msg(user_id: int):  # todo remove if
 async def send_register_msg(user_id: int):
     """Sending registration request to current user and setting up tg keyboard for interaction with bot"""
 
-    if user_id in users:
+    if DBProcessor.get_user_from_db(user_id):
         logger.warning(f'User {user_id} already exists in db')
         reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
         await send_message(chat_id=user_id, text='You are already registered!', reply_markup=json.dumps(reply_markup))
@@ -54,16 +61,18 @@ async def send_register_msg(user_id: int):
 
 async def send_current_weather_msg(user_id: int):
     """Getting current weather data and sending it to user"""
+    user_data = DBProcessor.get_user_from_db(user_id)
 
-    if user_id not in users:
+    if not user_data:
         logger.warning(f'Can not get weather for user {user_id}. User is not in db!')
         await send_register_msg(user_id)
         return
 
     reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
-    user_name = users[user_id]['user_name']
-    lat = users[user_id]['location']['latitude']
-    lon = users[user_id]['location']['longitude']
+    user_name = user_data[1]
+    location = json.loads(user_data[3])
+    lat = location['latitude']
+    lon = location['longitude']
 
     logger.debug(f'Getting weather data for user {user_name}: {user_id}. Coordinates: lat: {lat}, lon: {lon}')
 
@@ -93,7 +102,7 @@ def set_default_kb(user_id: int) -> list:
     current_weather_button = {'text': 'Current weather'}
     keyboard = [[current_weather_button]]
 
-    if user_id not in users:  # TODO
+    if not DBProcessor.get_user_from_db(user_id):  # TODO
         keyboard[0].append({'text': 'Register'})
 
     return keyboard
@@ -152,8 +161,13 @@ async def process_updates():
             try:
                 message = json_data['message']
 
-                user_name = message["from"]["first_name"]
                 user_id = message["from"]["id"]
+                user_name = message["from"]["username"]
+
+                if message["from"].get("first_name"):
+                    first_name = message["from"]["first_name"]
+                else:
+                    first_name = None
 
                 logger.debug(f'Received message from user {user_name}: {user_id}')
 
@@ -166,12 +180,14 @@ async def process_updates():
                 if'location' in message:
                     logger.debug(f'Received location data from user: {user_id}: {user_name}')
 
-                    if user_id in users:  # TODO
+                    user_data = DBProcessor.get_user_from_db(user_id)
+
+                    if user_data:  # TODO
                         reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
                         text = 'You are already registered!'
                         logger.warning(f'User: {user_id}: {user_name} already exists in db!')
                     else:
-                        users[user_id] = {'user_name': user_name, 'location': message['location']}
+                        DBProcessor.add_user_to_db(id=user_id, username=user_name, first_name=first_name, location=json.dumps(message["location"]))
                         reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
                         text = 'Thanks, you have successfully registered!'
                         logger.debug(f'User: {user_id}: {user_name} successfully added in db')
@@ -211,4 +227,5 @@ if __name__ == '__main__':
         logger.info('Started')
         run_bot()
     except KeyboardInterrupt:
+        DBProcessor.__del__()
         logger.info('Stopped')
