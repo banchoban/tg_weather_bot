@@ -23,7 +23,7 @@ users = dict()
 # TODO users db
 
 
-async def send_start_msg(user_id: int):
+async def send_start_msg(user_id: int):  # todo remove if
     """Sending greeting message to user"""
 
     reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
@@ -99,8 +99,9 @@ def set_default_kb(user_id: int) -> list:
     return keyboard
 
 
+# TODO
 '''
-async def make_weather_mailing():  # TODO
+async def make_weather_mailing():  
     while True:
         if datetime.utcnow().date() > TODAY_DATE:  # if we have next day TODO make it better
             for user in subscribers_list:
@@ -207,7 +208,7 @@ def run_bot():
 
 if __name__ == '__main__':
     try:
-        logger.debug('Started')
+        logger.info('Started')
         run_bot()
     except KeyboardInterrupt:
-        logger.debug('Stopped')
+        logger.info('Stopped')
