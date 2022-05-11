@@ -171,14 +171,11 @@ async def process_updates():
 
                 logger.debug(f'Received message from user {user_name}: {user_id}')
 
-                if message.get('text') and message['text'] in command_mapping:
-                    logger.debug(f'Received {message["text"]} command from user {user_id}: {user_name}')
-                    await command_mapping[message['text']](user_id=user_id)
-                    logger.debug(f'Command {message["text"]} for user {user_id}: {user_name} executed')
-                    continue
+                reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
 
                 if'location' in message:
                     logger.debug(f'Received location data from user: {user_id}: {user_name}')
+
 
                     user_data = DBProcessor.get_user_from_db(user_id)
 
@@ -191,6 +188,8 @@ async def process_updates():
                         reply_markup = {'keyboard': set_default_kb(user_id), 'resize_keyboard': True}
                         text = 'Thanks, you have successfully registered!'
                         logger.debug(f'User: {user_id}: {user_name} successfully added in db')
+                        await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
+                        continue
             except KeyError as error:
                 logger.error(f'Error while parsing received tg message: KeyError: {error}')
                 continue
@@ -198,7 +197,14 @@ async def process_updates():
                 logger.error(f'Error while parsing received tg message: {type(error)}: {error}')
                 continue
 
-            await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
+            if message.get('text') and message['text'] in command_mapping:
+                logger.debug(f'Received {message["text"]} command from user {user_id}: {user_name}')
+                await command_mapping[message['text']](user_id=user_id)
+                logger.debug(f'Command {message["text"]} for user {user_id}: {user_name} executed')
+                continue
+            else:
+                logger.warning(f"Command text from user: {user_name} unrecognized! Message text: {message.get('text')}")
+                await send_message(chat_id=user_id, text='Your message was not recognized! Please, check it and try to send again.', reply_markup=json.dumps(reply_markup))
 
 
 async def send_message(chat_id: int, text: str, reply_markup: str = None, data=None):  # TODO do we need to send files in messages?
@@ -224,7 +230,8 @@ def run_bot():
 
 if __name__ == '__main__':
     try:
-        logger.info('Started')
+        logger.setLevel(logging.DEBUG)
+        logger.debug('Started')
         run_bot()
     except KeyboardInterrupt:
         DBProcessor.__del__()
