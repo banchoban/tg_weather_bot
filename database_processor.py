@@ -25,7 +25,7 @@ class DBProcessor:
 
     def create_users_table(self):
         try:
-            query = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY NOT NULL UNIQUE, username VARCHAR(20) NOT NULL, first_name VARCHAR(20), location TEXT NOT NULL, need_location INTEGER NOT NULL)"
+            query = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY NOT NULL UNIQUE, username VARCHAR(20) NOT NULL, first_name VARCHAR(20), location TEXT NOT NULL)"
 
             cursor = self.db_connection.cursor()
             cursor.execute(query)
@@ -38,7 +38,7 @@ class DBProcessor:
 
     def add_user_to_db(self, id: int, username: str, first_name: str, location: str):
         try:
-            query = "INSERT INTO users (id, username, first_name, location, need_location) VALUES (?, ?, ?, ?, 0)"
+            query = "INSERT INTO users (id, username, first_name, location) VALUES (?, ?, ?, ?)"
 
             cursor = self.db_connection.cursor()
             cursor.execute(query, [id, username, first_name, location])
@@ -69,7 +69,7 @@ class DBProcessor:
 
     def update_location(self, id: int, location: str):
         try:
-            query = "UPDATE users SET location=?, need_location=0,  WHERE id=?"
+            query = "UPDATE users SET location=? WHERE id=?"
 
             cursor = self.db_connection.cursor()
             cursor.execute(query, [location, id])
