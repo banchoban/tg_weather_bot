@@ -40,7 +40,7 @@ class TgWeatherBot:
 
         self.command_mapping = {'/start': self.send_start_msg,
                                 'Register': self.send_register_msg,
-                                'Change location': self.send_register_msg,  # TODO
+                                # 'Change location': self.send_register_msg,  # TODO
                                 'Current weather': self.send_current_weather_msg}
 
     def __del__(self):
@@ -117,6 +117,8 @@ class TgWeatherBot:
 
         if not self.DBProcessor.get_user_from_db(user_id):  # TODO
             keyboard[0].append({'text': 'Register'})
+        else:
+            keyboard[0].append({'text': 'Change location', 'request_location': True})
 
         return keyboard
 
@@ -188,15 +190,18 @@ class TgWeatherBot:
 
                         user_data = self.DBProcessor.get_user_from_db(user_id)
 
-                        if user_data:  # TODO
-                            reply_markup = {'keyboard': self.set_default_kb(user_id), 'resize_keyboard': True}
-                            text = 'You are already registered!'
-                            logger.warning(f'User: {user_id}: {user_name} already exists in db!')
+                        location_data = json.dumps(message["location"])
+
+                        if user_data:
+                            self.DBProcessor.update_location(id=user_id, location=location_data)
+                            text = 'Location data updated.'
+                            logger.debug(f'Location data for user: {user_id}: {user_name} updated.')
                         else:
-                            self.DBProcessor.add_user_to_db(id=user_id, username=user_name, first_name=first_name, location=json.dumps(message["location"]))
-                            reply_markup = {'keyboard': self.set_default_kb(user_id), 'resize_keyboard': True}
-                            text = 'Thanks, you have successfully registered!'
+                            self.DBProcessor.add_user_to_db(id=user_id, username=user_name, first_name=first_name, location=location_data)
+                            text = 'You have successfully registered!'
                             logger.debug(f'User: {user_id}: {user_name} successfully added in db')
+
+                        reply_markup = {'keyboard': self.set_default_kb(user_id), 'resize_keyboard': True}
 
                         await send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))
                         continue

@@ -25,7 +25,7 @@ class DBProcessor:
 
     def create_users_table(self):
         try:
-            query = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY NOT NULL UNIQUE, username VARCHAR(20) NOT NULL, first_name VARCHAR(20), location TEXT NOT NULL)"
+            query = "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY NOT NULL UNIQUE, username VARCHAR(20) NOT NULL, first_name VARCHAR(20), location TEXT NOT NULL, need_location INTEGER NOT NULL)"
 
             cursor = self.db_connection.cursor()
             cursor.execute(query)
@@ -38,7 +38,7 @@ class DBProcessor:
 
     def add_user_to_db(self, id: int, username: str, first_name: str, location: str):
         try:
-            query = "INSERT INTO users (id, username, first_name, location) VALUES (?, ?, ?, ?)"
+            query = "INSERT INTO users (id, username, first_name, location, need_location) VALUES (?, ?, ?, ?, 0)"
 
             cursor = self.db_connection.cursor()
             cursor.execute(query, [id, username, first_name, location])
@@ -66,4 +66,51 @@ class DBProcessor:
             logger.error(f"Error when trying to find user {id} in users table: {error}")
         finally:
             cursor.close()
+
+    def update_location(self, id: int, location: str):
+        try:
+            query = "UPDATE users SET location=?, need_location=0,  WHERE id=?"
+
+            cursor = self.db_connection.cursor()
+            cursor.execute(query, [location, id])
+
+        except sqlite3.Error as error:
+            logger.error(f"Error when trying to update user {id} in users table: {error}")
+        finally:
+            cursor.close()
+
+'''
+    def set_need_location(self, id: int):
+        try:
+            query = "UPDATE users SET need_location=1 WHERE id=?"
+
+            cursor = self.db_connection.cursor()
+            cursor.execute(query, [id])
+
+        except sqlite3.Error as error:
+            logger.error(f"Error when trying to update user {id} in users table: {error}")
+        finally:
+            cursor.close()
+                
+    def check_need_location(self, id: int):
+    try:
+        query = "SELECT need_location FROM users WHERE id=?"
+
+        cursor = self.db_connection.cursor()
+        cursor.execute(query, [id])
+        result = cursor.fetchall()
+
+        flag = result[0][0]
+
+        if flag == 1:
+            return True
+
+        return False
+    except sqlite3.Error as error:
+        logger.error(f"Error when trying check {id} in users table: {error}")
+    finally:
+        cursor.close()
+'''
+
+
 
