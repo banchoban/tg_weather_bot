@@ -35,7 +35,7 @@ async def send_message(chat_id: int, text: str, reply_markup: str = None, data=N
 class TgWeatherBot:
 
     def __init__(self):
-        self.DBProcessor = DBProcessor('sqlite3.db')
+        self.DBProcessor = DBProcessor('./db/sqlite3.db')
         self.updates_queue = list()
 
         self.command_mapping = {'/start': self.send_start_msg,
