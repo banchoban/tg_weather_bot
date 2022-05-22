@@ -4,6 +4,7 @@
 import json
 import asyncio
 import logging
+import sys
 
 from decouple import config
 from datetime import datetime  # TODO timezones
@@ -34,8 +35,8 @@ async def send_message(chat_id: int, text: str, reply_markup: str = None, data=N
 
 class TgWeatherBot:
 
-    def __init__(self):
-        self.DBProcessor = DBProcessor('sqlite3.db')
+    def __init__(self, db_path):
+        self.DBProcessor = DBProcessor(db_path)
         self.updates_queue = list()
 
         self.command_mapping = {'/start': self.send_start_msg,
@@ -146,7 +147,9 @@ class TgWeatherBot:
             update = json.loads(response)
 
             try:
-                if update['result']:
+                if update.get('error_code'):
+                    logger.error(update['error_code'] + ': ' + update['description'])
+                elif update.get('result'):
                     logger.debug(f'Received {len(update["result"])} updates from Telegram')
                     updates_offset = update['result'][-1]['update_id'] + 1
                     self.updates_queue.extend(update['result'])
@@ -231,7 +234,8 @@ class TgWeatherBot:
 
 
 if __name__ == '__main__':
-    tg_bot = TgWeatherBot()
+    db_path = sys.argv[1]
+    tg_bot = TgWeatherBot(db_path)
     try:
         logger.setLevel(logging.DEBUG)
         logger.debug('Started')
