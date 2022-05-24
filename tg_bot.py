@@ -239,6 +239,7 @@ if __name__ == '__main__':
     try:
         logger.setLevel(logging.DEBUG)
         logger.debug('Started')
+        logger.debug(f'DB path: {db_path}')
         tg_bot.run_bot()
     except KeyboardInterrupt:
         logger.info('Stopped')

@@ -73,6 +73,7 @@ class DBProcessor:
 
             cursor = self.db_connection.cursor()
             cursor.execute(query, [location, id])
+            self.db_connection.commit()
 
         except sqlite3.Error as error:
             logger.error(f"Error when trying to update user {id} in users table: {error}")
