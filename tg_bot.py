@@ -1,5 +1,4 @@
 # This is main module of project, used for interaction with telegram api
-# TODO move methods into class?
 
 import json
 import asyncio
@@ -19,21 +18,6 @@ API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token,
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
-
-
-def parse_user_data(json_data: dict):
-    user_data = dict()
-
-    user_data["user_id"] = json_data["id"]
-    user_data["user_name"] = json_data["username"]
-
-    if json_data.get("first_name"):
-        user_data["first_name"] = json_data["first_name"]
-    else:
-        user_data["first_name"] = None
-
-    return user_data
-
 
 class TgWeatherBot:
 
@@ -237,11 +221,7 @@ class TgWeatherBot:
 
             user_data = parse_user_data(message["from"])
 
-            # self.chats[user_data['user_id']] = message['message_id']
-
             logger.debug(f'Received message from user {user_data["user_name"]}: {user_data["user_id"]}')
-
-            reply_markup = {'keyboard': self.set_default_kb(user_data["user_id"]), 'resize_keyboard': True}
 
             if 'location' in message:  # todo warn about unexpected location receivings
                 logger.debug(f'Received location data from user: {user_data["user_id"]}: {user_data["user_name"]}')
@@ -278,9 +258,6 @@ class TgWeatherBot:
             return
         else:
             logger.warning(f"Command text from user: {user_data['user_name']} unrecognized! Message text: {message.get('text')}")
-            # await self.send_message(chat_id=user_data["user_id"],
-            #                    text='Your message was not recognized! Please, check it and try to send again.',
-            #                    reply_markup=json.dumps(reply_markup))
 
     def run_bot(self):
         """Run tasks for receiving and processing updates"""
