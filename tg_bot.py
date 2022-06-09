@@ -9,7 +9,7 @@ import sys
 from decouple import config
 from datetime import datetime  # TODO timezones
 
-from helpers.requester import make_request
+from helpers.requester import make_request, parse_user_data
 from weather_processor import get_current_weather
 from database_processor import DBProcessor
 
@@ -19,20 +19,6 @@ API_REQUEST_TPL = 'https://api.telegram.org/bot{}/{}'  # URL format: (API token,
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
-
-
-def parse_user_data(json_data: dict):
-    user_data = dict()
-
-    user_data["user_id"] = json_data["id"]
-    user_data["user_name"] = json_data["username"]
-
-    if json_data.get("first_name"):
-        user_data["first_name"] = json_data["first_name"]
-    else:
-        user_data["first_name"] = None
-
-    return user_data
 
 
 class TgWeatherBot:
