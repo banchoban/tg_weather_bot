@@ -11,7 +11,7 @@ from datetime import datetime  # TODO timezones
 
 from helpers.requester import make_request, parse_user_data
 from weather_processor import get_current_weather
-from database_processor import DBProcessor
+from db.database_processor import DBProcessor
 
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
