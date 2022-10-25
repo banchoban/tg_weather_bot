@@ -12,6 +12,7 @@ from datetime import datetime  # TODO timezones
 from helpers.requester import make_request, parse_user_data
 from weather_processor import get_current_weather
 from database_processor import DBProcessor
+from aiohttp import web
 
 
 API_ACCESS_TOKEN = config('TG_TOKEN')
@@ -21,11 +22,17 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 
+async def ping_handler(request):
+    return web.Response(text="OK")
+
+
 class TgWeatherBot:
 
-    def __init__(self, db_path):
+    def __init__(self, db_path, port):
         self.DBProcessor = DBProcessor(db_path)
+        self.port = port
         self.updates_queue = list()
+        self.ioloop = asyncio.get_event_loop()
         self.command_mapping = {'/start': self.send_start_msg,
                                 'register': self.send_register_msg,
                                 'location': self.send_register_msg,
@@ -35,6 +42,21 @@ class TgWeatherBot:
 
     def __del__(self):
         self.DBProcessor.__del__()
+        self.ioloop.close()
+
+    async def start_server(self):
+        server = web.Server(ping_handler)
+        runner = web.ServerRunner(server)
+        await runner.setup()
+        site = web.TCPSite(runner, 'localhost', self.port)
+        await site.start()
+
+        print(f"======= Serving on http://127.0.0.1:{self.port}/ ======")
+
+        # pause here for very long time by serving HTTP requests and
+        # waiting for keyboard interruption
+        while True:
+            await asyncio.sleep(10.0)
 
     async def send_message(self, chat_id: int, text: str, reply_markup: str = None,
                            data=None):  # TODO do we need to send files in messages?
@@ -270,20 +292,20 @@ class TgWeatherBot:
 
     def run_bot(self):
         """Run tasks for receiving and processing updates"""
-        ioloop = asyncio.get_event_loop()
-        tasks = [ioloop.create_task(self.get_updates()), ioloop.create_task(self.process_updates())]
+        tasks = [self.ioloop.create_task(self.get_updates()), self.ioloop.create_task(self.process_updates()), self.ioloop.create_task(self.start_server())]
         wait_tasks = asyncio.wait(tasks)
-        ioloop.run_until_complete(wait_tasks)
-        ioloop.close()
+        self.ioloop.run_until_complete(wait_tasks)
 
 
 if __name__ == '__main__':
     db_path = sys.argv[1]
-    tg_bot = TgWeatherBot(db_path)
+    port = int(sys.argv[2])
+    tg_bot = TgWeatherBot(db_path, port)
     try:
         logger.setLevel(logging.DEBUG)
         logger.debug('Started')
         logger.debug(f'DB path: {db_path}')
+        logger.debug(f'Web server started on port {port}')
         tg_bot.run_bot()
     except KeyboardInterrupt:
         logger.info('Stopped')
