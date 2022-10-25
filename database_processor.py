@@ -14,6 +14,7 @@ class DBProcessor:
         try:
             self.db_connection = sqlite3.connect(db_path)
             logger.debug("Database connection successfully created")
+            logger.debug(f'DB path: {db_path}')
             self.create_users_table()
 
         except sqlite3.Error as error:

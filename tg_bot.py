@@ -51,7 +51,7 @@ class TgWeatherBot:
         site = web.TCPSite(runner, 'localhost', self.port)
         await site.start()
 
-        print(f"======= Serving on http://127.0.0.1:{self.port}/ ======")
+        logger.debug(f"======= Serving on http://127.0.0.1:{self.port}/ ======")
 
         # pause here for very long time by serving HTTP requests and
         # waiting for keyboard interruption
@@ -304,8 +304,6 @@ if __name__ == '__main__':
     try:
         logger.setLevel(logging.DEBUG)
         logger.debug('Started')
-        logger.debug(f'DB path: {db_path}')
-        logger.debug(f'Web server started on port {port}')
         tg_bot.run_bot()
     except KeyboardInterrupt:
         logger.info('Stopped')
