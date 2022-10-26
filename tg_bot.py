@@ -27,8 +27,8 @@ class TgWeatherBot:
         self.DBProcessor = DBProcessor(db_path)
         self.updates_queue = list()
         self.command_mapping = {'/start': self.send_start_msg,
-                                'register': self.send_register_msg,
-                                'location': self.send_register_msg,
+                                'register': self.request_location,
+                                'location': self.request_location,
                                 'current_weather': self.send_current_weather_msg}
 
         self.chats = dict()
@@ -83,17 +83,16 @@ class TgWeatherBot:
 
         await self.send_message(chat_id=user_id, text=text, reply_markup=json.dumps(reply_markup))  # todo edit commands list for user
 
-    async def send_register_msg(self, user_id: int):
+    async def request_location(self, user_id: int):
         """Sending registration request to current user and setting up tg keyboard for interaction with bot"""
 
         if self.DBProcessor.get_user_from_db(user_id):
             logger.warning(f'User {user_id} already exists in db')
-            reply_markup = {'inline_keyboard': self.set_default_kb(user_id)}
-            # await self.update_message(chat_id=user_id, text='You are already registered!', reply_markup=json.dumps(reply_markup))
-            # return
+
+        reply_markup = {'inline_keyboard': self.set_default_kb(user_id)}
 
         logger.debug(f'Requesting user {user_id} to send location data')
-        await self.send_message(chat_id=user_id, text='Please, send me your current location.')
+        await self.update_message(chat_id=user_id, text='Please, send me your current location.', reply_markup=json.dumps(reply_markup))
 
     async def send_current_weather_msg(self, user_id: int):
         """Getting current weather data and sending it to user"""
@@ -101,7 +100,7 @@ class TgWeatherBot:
 
         if not user_data:
             logger.warning(f'Can not get weather for user {user_id}. User is not in db!')
-            await self.send_register_msg(user_id)
+            await self.request_location(user_id)
             return
 
         reply_markup = {'inline_keyboard': self.set_default_kb(user_id)}
@@ -227,7 +226,7 @@ class TgWeatherBot:
 
             logger.debug(f'Received message from user {user_data["user_name"]}: {user_data["user_id"]}')
 
-            reply_markup = {'keyboard': self.set_default_kb(user_data["user_id"]), 'resize_keyboard': True}
+            # reply_markup = {'keyboard': self.set_default_kb(user_data["user_id"]), 'resize_keyboard': True}
 
             if 'location' in message:  # todo warn about unexpected location receivings
                 logger.debug(f'Received location data from user: {user_data["user_id"]}: {user_data["user_name"]}')
